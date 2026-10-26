@@ -8,6 +8,8 @@ include $(ROOT_DIR)/config.mk
 #   make gui        open it in synthgui
 #   make synth      batch: synthesize + place & route
 #   make bit        batch: ... + bitstream
+#   make kernel     new kernel into the routed FASM, then the bitstream only
+#                   (seconds; no synthesis or place and route)
 #   make program    load the bitstream over JTAG
 
 SYNTHGUI_DIR ?= $(HOME)/synthgui
@@ -66,10 +68,16 @@ bit: vortex_vc707.json
 program: vortex_vc707.json
 	$(SYNTHGUI) --project $(CURDIR)/vortex_vc707.json --run program
 
+# The lane block RAMs keep their places; only their INIT lines change.
+kernel: $(LANES) vortex_vc707.json
+	python3 $(SRC_DIR)/update_bram_init.py --placement $(WORK_DIR)/vortex_vc707_placement.json \
+		--fasm $(WORK_DIR)/vortex_vc707.fasm --out $(WORK_DIR)/vortex_vc707.fasm --hexdir mem
+	QT_QPA_PLATFORM=offscreen $(SYNTHGUI) --project $(CURDIR)/vortex_vc707.json --run bit
+
 clean:
 	rm -rf kernel.elf kernel.bin mem vortex_vc707.json
 
 clean-work:
 	rm -rf $(WORK_DIR)
 
-.PHONY: all project gui synth bit program clean clean-work
+.PHONY: all project gui synth bit kernel program clean clean-work
